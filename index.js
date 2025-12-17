@@ -3,37 +3,56 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-const { MongoClient } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-// middleware
+/*MIDDLEWARE*/
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: "http://localhost:5173", // frontend
     credentials: true,
   })
 );
+
+//Preflight fix
+app.options("*", cors());
+
 app.use(express.json());
 app.use(cookieParser());
 
-// mongo
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.mongodb.net/?retryWrites=true&w=majority`;
-const client = new MongoClient(uri);
+/*MONGODB*/
+const { MongoClient, ServerApiVersion } = require("mongodb");
+
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@roycluster.xla8ebs.mongodb.net/?retryWrites=true&w=majority`;
+
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+});
 
 let usersCollection;
 
 async function run() {
-  await client.connect();
-  const db = client.db("localChefBazaarDB");
-  usersCollection = db.collection("users");
+  try {
+    await client.connect();
+    console.log("Connected to MongoDB");
+
+    const db = client.db("localChefBazaarDB");
+    usersCollection = db.collection("users");
+  } catch (error) {
+    console.error(error);
+  }
 }
 run();
 
-// ✅ JWT api
-app.post("/api/users/jwt", async (req, res) => {
+/*JWT ROUTES*/
+app.post("/api/users/jwt", (req, res) => {
   const email = req.body.email;
+
   const token = jwt.sign({ email }, process.env.JWT_SECRET, {
     expiresIn: "1d",
   });
@@ -41,21 +60,28 @@ app.post("/api/users/jwt", async (req, res) => {
   res
     .cookie("token", token, {
       httpOnly: true,
-      secure: false, // production এ true
+      secure: false, // localhost
       sameSite: "lax",
     })
     .send({ success: true });
 });
 
-app.get("/api/users/logout", (req, res) => {
-  res.clearCookie("token").send({ success: true });
+app.post("/logout", (req, res) => {
+  res
+    .clearCookie("token", {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+    })
+    .status(200)
+    .send({ message: "Logged out successfully" });
 });
 
-// ✅ Save user
+/*SAVE USER*/
 app.post("/api/users", async (req, res) => {
   const user = req.body;
-  const exists = await usersCollection.findOne({ email: user.email });
 
+  const exists = await usersCollection.findOne({ email: user.email });
   if (exists) {
     return res.send({ message: "User already exists" });
   }
@@ -69,8 +95,9 @@ app.post("/api/users", async (req, res) => {
   res.send(result);
 });
 
+/*ROOT*/
 app.get("/", (req, res) => {
-  res.send("LocalChefBazaar Server Running ✅");
+  res.send("LocalChefBazaar Server Running");
 });
 
 app.listen(port, () => {

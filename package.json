@@ -1,1 +1,33 @@
-{"dependencies":{"cookie-parser":"^1.4.7","cors":"^2.8.5","dotenv":"^17.2.3","express":"^5.2.1","jsonwebtoken":"^9.0.3","mongodb":"^7.0.0"},"scripts":{"start":"node index.js","dev":"nodemon index.js","test":"echo \"Error: no test specified\" && exit 1"},"devDependencies":{"nodemon":"^3.1.11"},"name":"localchefbazaar-server","version":"1.0.0","description":"","main":"index.js","repository":{"type":"git","url":"git+https://github.com/roymukta21/roy-11th-assignment-server.git"},"keywords":[],"author":"","license":"ISC","bugs":{"url":"https://github.com/roymukta21/roy-11th-assignment-server/issues"},"homepage":"https://github.com/roymukta21/roy-11th-assignment-server#readme"}
+{
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.0.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  },
+  "name": "localchefbazaar-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roymukta21/roy-11th-assignment-server.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/roymukta21/roy-11th-assignment-server/issues"
+  },
+  "homepage": "https://github.com/roymukta21/roy-11th-assignment-server#readme"
+}
