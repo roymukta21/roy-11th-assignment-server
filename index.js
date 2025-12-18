@@ -3,28 +3,23 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const { MongoClient, ServerApiVersion } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-/*MIDDLEWARE*/
+// middleware
 app.use(
   cors({
-    origin: "http://localhost:5173", // frontend
+    origin: ["http://localhost:5173"],
     credentials: true,
   })
 );
-
-//Preflight fix
-app.options("*", cors());
-
 app.use(express.json());
 app.use(cookieParser());
 
-/*MONGODB*/
-const { MongoClient, ServerApiVersion } = require("mongodb");
-
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@roycluster.xla8ebs.mongodb.net/?retryWrites=true&w=majority`;
+// MongoDB URI
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@roycluster.xla8ebs.mongodb.net/localChefBazaar?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -34,72 +29,96 @@ const client = new MongoClient(uri, {
   },
 });
 
-let usersCollection;
-
 async function run() {
   try {
     await client.connect();
-    console.log("Connected to MongoDB");
+    console.log("✅ Connected to MongoDB");
 
-    const db = client.db("localChefBazaarDB");
-    usersCollection = db.collection("users");
-  } catch (error) {
-    console.error(error);
+    const db = client.db("localChefBazaar");
+    const usersCollection = db.collection("users");
+    const mealsCollection = db.collection("meals");
+
+    // ================= JWT =================
+    app.post("/jwt", (req, res) => {
+      const { email } = req.body;
+
+      const token = jwt.sign({ email }, process.env.JWT_SECRET, {
+        expiresIn: "1d",
+      });
+
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax",
+      });
+
+      res.send({ success: true });
+    });
+
+    app.post("/logout", (req, res) => {
+      res.clearCookie("token", {
+        httpOnly: true,
+        sameSite: "lax",
+      });
+      res.send({ success: true });
+    });
+
+    // ================= USERS =================
+    app.post("/api/users", async (req, res) => {
+      const user = req.body;
+      const exists = await usersCollection.findOne({ email: user.email });
+
+      if (exists) {
+        return res.send({ message: "User already exists" });
+      }
+
+      const result = await usersCollection.insertOne({
+        ...user,
+        role: "user",
+        status: "active",
+        createdAt: new Date(),
+      });
+
+      res.send(result);
+    });
+
+    // ================= MEALS =================
+    app.get("/meals", async (req, res) => {
+      const sort = req.query.sort === "desc" ? -1 : 1;
+
+      const result = await mealsCollection
+        .find()
+        .sort({ price: sort })
+        .toArray();
+
+      res.send(result);
+    });
+
+    // Single meal
+    app.get("/meals/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await mealsCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
+    });
+
+  } finally {
+    // keep server running
   }
 }
-run();
 
-/*JWT ROUTES*/
-app.post("/api/users/jwt", (req, res) => {
-  const email = req.body.email;
+run().catch(console.dir);
 
-  const token = jwt.sign({ email }, process.env.JWT_SECRET, {
-    expiresIn: "1d",
-  });
-
-  res
-    .cookie("token", token, {
-      httpOnly: true,
-      secure: false, // localhost
-      sameSite: "lax",
-    })
-    .send({ success: true });
-});
-
-app.post("/logout", (req, res) => {
-  res
-    .clearCookie("token", {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-    })
-    .status(200)
-    .send({ message: "Logged out successfully" });
-});
-
-/*SAVE USER*/
-app.post("/api/users", async (req, res) => {
-  const user = req.body;
-
-  const exists = await usersCollection.findOne({ email: user.email });
-  if (exists) {
-    return res.send({ message: "User already exists" });
-  }
-
-  const result = await usersCollection.insertOne({
-    email: user.email,
-    role: "user",
-    createdAt: new Date(),
-  });
-
-  res.send(result);
-});
-
-/*ROOT*/
 app.get("/", (req, res) => {
-  res.send("LocalChefBazaar Server Running");
+  res.send("✅ LocalChefBazaar Server Running");
 });
 
 app.listen(port, () => {
-  console.log("Server running on port", port);
+  console.log(`🚀 Server running on port ${port}`);
+});
+
+app.get("/reviews", async (req, res) => {
+  const result = await reviewsCollection.find().toArray();
+  res.send(result);
 });
