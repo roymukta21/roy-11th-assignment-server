@@ -32,13 +32,14 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     const db = client.db("localChefBazaar");
     const usersCollection = db.collection("users");
     const mealsCollection = db.collection("meals");
 
-    // ================= JWT =================
+
+    // JWT
     app.post("/jwt", (req, res) => {
       const { email } = req.body;
 
@@ -63,7 +64,7 @@ async function run() {
       res.send({ success: true });
     });
 
-    // ================= USERS =================
+    //  USERS 
     app.post("/api/users", async (req, res) => {
       const user = req.body;
       const exists = await usersCollection.findOne({ email: user.email });
@@ -82,7 +83,7 @@ async function run() {
       res.send(result);
     });
 
-    // ================= MEALS =================
+    //  MEALS 
     app.get("/meals", async (req, res) => {
       const sort = req.query.sort === "desc" ? -1 : 1;
 
@@ -118,7 +119,60 @@ app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
 
+
+// reviews
 app.get("/reviews", async (req, res) => {
-  const result = await reviewsCollection.find().toArray();
+  try {
+    const result = await reviewsCollection.find().toArray();
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ error: "Failed to load reviews" });
+  }
+});
+
+// Chef / Admin Request API
+app.post("/role-requests", async (req, res) => {
+  const request = req.body;
+  request.requestStatus = "pending";
+  request.requestTime = new Date();
+
+  const result = await roleRequestCollection.insertOne(request);
   res.send(result);
+});
+
+//Orders
+
+app.get("/orders", async (req, res) => {
+  const email = req.query.email;
+  const result = await ordersCollection.find({ userEmail: email }).toArray();
+  res.send(result);
+});
+
+// Stripe Payment
+app.post("/create-payment-intent", async (req, res) => {
+  const { orderId, price } = req.body;
+
+  const amount = parseInt(price * 100);
+
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount,
+    currency: "bdt",
+    payment_method_types: ["card"],
+  });
+
+  res.send({ clientSecret: paymentIntent.client_secret });
+});
+
+//Payment Success
+app.post("/payments", async (req, res) => {
+  const payment = req.body;
+
+  const paymentResult = await paymentsCollection.insertOne(payment);
+
+  await ordersCollection.updateOne(
+    { _id: new ObjectId(payment.orderId) },
+    { $set: { paymentStatus: "paid" } }
+  );
+
+  res.send(paymentResult);
 });
