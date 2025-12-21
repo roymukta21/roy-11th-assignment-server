@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -85,6 +85,64 @@ async function run() {
       });
 
       res.send(result);
+    });
+
+    // Get all role requests (Admin)
+    app.get("/role-requests", async (req, res) => {
+      const result = await roleRequestCollection
+        .find()
+        .sort({ requestTime: -1 })
+        .toArray();
+      res.send(result);
+    });
+
+    app.patch("/role-requests/approve/:id", async (req, res) => {
+      const id = req.params.id;
+      const request = await roleRequestCollection.findOne({
+        _id: new ObjectId(id),
+      });
+
+      if (!request) {
+        return res.status(404).send({ message: "Request not found" });
+      }
+
+      let updateUser = {};
+
+      // Chef approve
+      if (request.requestType === "chef") {
+        const chefId = `chef-${Math.floor(1000 + Math.random() * 9000)}`;
+        updateUser = { role: "chef", chefId };
+      }
+
+      // Admin approve
+      if (request.requestType === "admin") {
+        updateUser = { role: "admin" };
+      }
+
+      // Update user role
+      await usersCollection.updateOne(
+        { email: request.userEmail },
+        { $set: updateUser }
+      );
+
+      // Update request status
+      await roleRequestCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { requestStatus: "approved" } }
+      );
+
+      res.send({ success: true, message: "Request approved" });
+    });
+
+    app.patch("/role-requests/reject/:id", async (req, res) => {
+      const id = req.params.id;
+
+      await roleRequestCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { requestStatus: "rejected" } }
+      );
+
+      res.send({ success: true, message: "Request rejected" });
     });
 
     //  MEALS
