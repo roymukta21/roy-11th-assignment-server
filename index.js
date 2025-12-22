@@ -24,7 +24,7 @@ app.use(cors());
 // jwt verifactions
 const verifyFirebaseToken = async (req, res, next) => {
   const token = req.headers.authorization;
- if (!authHeader || !authHeader.startsWith("Bearer ")) {
+ if (!token || !token.startsWith("Bearer ")) {
       return res.status(401).send({ message: "Unauthorized access" });
     }
 
@@ -403,8 +403,7 @@ async function run() {
       }
     );
 
-    // user reviews for single meals
-    // get reviews apis
+    
     app.get("/meals-reviews/:mealId", verifyFirebaseToken, async (req, res) => {
       const mealId = req.params.mealId;
       const query = { mealId: new ObjectId(mealId) };
