@@ -4,7 +4,7 @@ const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const stripe = require("stripe")(`${process.env.STRIPE_KEY}`);
-// firebase-admin auth
+//firebase-admin auth
 const admin = require("firebase-admin");
 const serviceAccount = require("./local-chef-bazaar.json");
 

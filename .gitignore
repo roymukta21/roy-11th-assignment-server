@@ -35,3 +35,7 @@ Thumbs.db
 # Coverage
 coverage/
 .vercel
+
+
+# Google / Service Account Keys
+local-chef-bazaar.json
