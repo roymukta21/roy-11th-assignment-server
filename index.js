@@ -24,14 +24,16 @@ app.use(cors());
 // jwt verifactions
 const verifyFirebaseToken = async (req, res, next) => {
   const token = req.headers.authorization;
- if (!token || !token.startsWith("Bearer ")) {
-      return res.status(401).send({ message: "Unauthorized access" });
-    }
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorised access" });
+  }
+  //console.log(token)
 
   try {
     const idToken = token.split(" ")[1];
     const decoded = await admin.auth().verifyIdToken(idToken);
     req.decoded_email = decoded.email;
+    //console.log(decoded)
     next();
   } catch (err) {
     return res.status(401).send({ message: "Unauthorised access" });
@@ -76,8 +78,10 @@ async function run() {
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded_email;
       const query = { email };
+      //console.log(query)
       const user = await usersCollection.findOne(query);
-      if (!user || user.role !== "admin") {
+      //console.log(user)
+      if (!user || user.role !== "Admin") {
         return res.status(403).send({ message: "forbidden access" });
       }
       next();
@@ -354,7 +358,7 @@ async function run() {
         const meal = req.body;
 
         const user = await usersCollection.findOne({
-          email: req.user.email,
+          email: req.body.email,
         });
 
         if (!user) {
