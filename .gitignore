@@ -39,3 +39,4 @@ coverage/
 
 # Google / Service Account Keys
 local-chef-bazaar.json
+.env
