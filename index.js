@@ -12,7 +12,6 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-
 // Create app
 const app = express();
 const port = process.env.PORT || 5000;
@@ -43,7 +42,6 @@ const verifyFirebaseToken = async (req, res, next) => {
 // MongoDB URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@roycluster.xla8ebs.mongodb.net/localChefBazaar?retryWrites=true&w=majority`;
 
-
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -53,7 +51,7 @@ const client = new MongoClient(uri, {
 });
 async function run() {
   try {
-    const database = client.db("localChefBazaar")
+    const database = client.db("localChefBazaar");
     const usersCollection = database.collection("users");
     const mealsCollection = database.collection("meals");
     const mealsReviewsCollection = database.collection("mealsReviews");
@@ -95,34 +93,37 @@ async function run() {
       }
       next();
     };
-    
-    
-    app.get("/api/users", verifyFirebaseToken, verifyAdmin, async (req, res) => {
-      const email = req.query.email;
-      const query = {};
-      if (email) {
-        query.email = email;
+
+    app.get(
+      "/api/users",
+      verifyFirebaseToken,
+      verifyAdmin,
+      async (req, res) => {
+        const email = req.query.email;
+        const query = {};
+        if (email) {
+          query.email = email;
+        }
+        try {
+          const cursor = usersCollection.find(query).sort({ createdAt: -1 });
+          const result = await cursor.toArray();
+          res.send(result);
+        } catch (error) {
+          res.send(error);
+        }
       }
-      try {
-        const cursor = usersCollection.find(query).sort({ createdAt: -1 });
-        const result = await cursor.toArray();
-        res.send(result);
-      } catch (error) {
-        res.send(error);
-      }
-    });
+    );
     app.get("/api/users/email", verifyFirebaseToken, async (req, res) => {
       const email = req.query.email;
-      console.log(email)
+      console.log(email);
       const query = {};
       if (email) {
         query.email = email;
       }
-    
-      const result = await usersCollection.findOne(query);
-      console.log(result)
-      res.send(result);
 
+      const result = await usersCollection.findOne(query);
+      console.log(result);
+      res.send(result);
     });
     app.get("/api/users/:email/role", verifyFirebaseToken, async (req, res) => {
       const email = req.params.email;
@@ -268,7 +269,7 @@ async function run() {
         // accept
         if (action === "accept") {
           const userQuery = { email: request.userEmail };
-          
+
           // console.log(user);
           if (request.requestType === "chef") {
             const chefId = await getNextChefId();
@@ -351,7 +352,7 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
-    app.get("/meals/:id",  async (req, res) => {
+    app.get("/meals/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await mealsCollection.findOne(query);
@@ -411,7 +412,6 @@ async function run() {
       }
     );
 
-    
     app.get("/meals-reviews/:mealId", verifyFirebaseToken, async (req, res) => {
       const mealId = req.params.mealId;
       const query = { mealId: new ObjectId(mealId) };
@@ -621,6 +621,7 @@ async function run() {
     app.post("/create-checkout-session", async (req, res) => {
       try {
         const paymentInfo = req.body;
+        console.log(paymentInfo)
         const amount = parseInt(paymentInfo.price) * 100;
 
         const session = await stripe.checkout.sessions.create({
@@ -639,7 +640,7 @@ async function run() {
           customer_email: paymentInfo.userEmail,
           mode: "payment",
           metadata: {
-            orderId: paymentInfo.orderId, 
+            orderId: paymentInfo.orderId,
             mealName: paymentInfo.mealName,
           },
           success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
@@ -657,7 +658,7 @@ async function run() {
     app.get("/payments", async (req, res) => {
       const email = req.query.email;
       const query = {};
-      
+
       const cursor = paymentCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
@@ -722,10 +723,8 @@ async function run() {
       }
     });
 
-  
     console.log("✅ Successfully connected to MongoDB!");
   } finally {
-    
   }
 }
 run().catch(console.dir);
