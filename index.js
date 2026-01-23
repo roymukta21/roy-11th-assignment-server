@@ -62,16 +62,31 @@ async function run() {
     const counterCollection = database.collection("counters");
 
     const getNextChefId = async () => {
-      const chefPera = await counterCollection.findOne({ _id: "chefId" });
-      chefPera.seq = chefPera.seq + 1;
-      const counter = await counterCollection.updateOne(
+      // Step–1: Find existing counter
+      let chefPera = await counterCollection.findOne({ _id: "chefId" });
+
+      // Step–2: If counter does NOT exist, create it
+      if (!chefPera) {
+        await counterCollection.insertOne({ _id: "chefId", seq: 0 });
+        chefPera = { _id: "chefId", seq: 0 };
+      }
+
+      // Step–3: Atomic increment (no race condition)
+      const updated = await counterCollection.findOneAndUpdate(
         { _id: "chefId" },
-        { $set: chefPera }
+        { $inc: { seq: 1 } },
+        { returnDocument: "after" },
       );
-      console.log("counter", counter);
-      const number = String(chefPera.seq).padStart(3, "0");
+
+      // Step–4: Get updated sequence
+      const nextSeq = updated.seq;
+
+      // Step–5: Format ID (3 digit)
+      const number = String(nextSeq).padStart(3, "0");
+
       return `CHEF_${number}`;
     };
+
     // must be used after verifyFBToken middleware
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded_email;
@@ -111,7 +126,7 @@ async function run() {
         } catch (error) {
           res.send(error);
         }
-      }
+      },
     );
     app.get("/api/users/email", verifyFirebaseToken, async (req, res) => {
       const email = req.query.email;
@@ -160,7 +175,7 @@ async function run() {
         };
         const result = await usersCollection.updateOne(query, updateDoc);
         res.send(result);
-      }
+      },
     );
     app.get(
       "/admin-stats",
@@ -174,15 +189,15 @@ async function run() {
 
         const totalPayment = paidOrders.reduce(
           (sum, o) => sum + o.price * Number(o.quantity),
-          0
+          0,
         );
 
         const deliveredOrders = orders.filter(
-          (o) => o.orderStatus === "delivered"
+          (o) => o.orderStatus === "delivered",
         ).length;
 
         const pendingOrders = orders.filter(
-          (o) => o.orderStatus !== "delivered"
+          (o) => o.orderStatus !== "delivered",
         ).length;
 
         console.log(totalPayment, deliveredOrders, pendingOrders);
@@ -193,7 +208,7 @@ async function run() {
           deliveredOrders,
           pendingOrders,
         });
-      }
+      },
     );
 
     // requests
@@ -296,7 +311,7 @@ async function run() {
 
           return res.send({ success: true, type: "approved", result });
         }
-      }
+      },
     );
     // Meals data from MongoDB
     app.get("/meals", async (req, res) => {
@@ -319,6 +334,9 @@ async function run() {
           query.$or = [
             { chefName: { $regex: search, $options: "i" } },
             { chefId: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+            { description: { $regex: search, $options: "i" } },
+            { foodName: { $regex: search, $options: "i" } },
           ];
         }
 
@@ -363,9 +381,9 @@ async function run() {
         const meal = req.body;
 
         const user = await usersCollection.findOne({
-          email: req.body.email,
+          email: req.decoded_email,
         });
-
+        console.log(user);
         if (!user) {
           return res.status(404).send({ message: "User not found" });
         }
@@ -394,7 +412,7 @@ async function run() {
         const query = { _id: new ObjectId(id) };
         const result = await mealsCollection.deleteOne(query);
         res.send(result);
-      }
+      },
     );
     app.patch(
       "/meals/:id",
@@ -409,7 +427,7 @@ async function run() {
         };
         const result = await mealsCollection.updateOne(query, updateDoc);
         res.send(result);
-      }
+      },
     );
 
     app.get("/meals-reviews/:mealId", verifyFirebaseToken, async (req, res) => {
@@ -610,18 +628,18 @@ async function run() {
 
         await ordersCollection.updateOne(
           { _id: new ObjectId(id) },
-          { $set: updateDoc }
+          { $set: updateDoc },
         );
 
         res.send({ success: true });
-      }
+      },
     );
 
     //Stripe payment option setup
     app.post("/create-checkout-session", async (req, res) => {
       try {
         const paymentInfo = req.body;
-        console.log(paymentInfo)
+        console.log(paymentInfo);
         const amount = parseInt(paymentInfo.price) * 100;
 
         const session = await stripe.checkout.sessions.create({
@@ -693,7 +711,7 @@ async function run() {
         const orderId = session.metadata.orderId;
         await ordersCollection.updateOne(
           { _id: new ObjectId(orderId) },
-          { $set: { paymentStatus: "paid" } }
+          { $set: { paymentStatus: "paid" } },
         );
 
         //  payment
